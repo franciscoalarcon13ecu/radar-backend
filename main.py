@@ -57,7 +57,7 @@ def seed(n: int = 120):
             "topic": topic
         })
 
-   @app.get("/mentions")
+ @app.get("/mentions")
 def get_mentions(limit: int = 50):
     sb, err = get_sb()
     if err:
@@ -72,4 +72,5 @@ def get_mentions(limit: int = 50):
     )
 
     return res.data
+
 
