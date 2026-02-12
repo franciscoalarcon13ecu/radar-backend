@@ -29,7 +29,7 @@ def health():
         "ts": datetime.now(timezone.utc).isoformat(),
     }
 
-@app.post("/seed")
+@app.api_route("/seed", methods=["GET", "POST"])
 def seed(n: int = 120):
     sb, err = get_sb()
     if err:
