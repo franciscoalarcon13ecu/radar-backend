@@ -59,3 +59,15 @@ def seed(n: int = 120):
 
     sb.table("mentions").insert(rows).execute()
     return {"inserted_mentions": n}
+@app.get("/test")
+def test():
+    from supabase import create_client
+    import os
+
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    res = supabase.table("test_table").select("*").execute()
+    return res.data
