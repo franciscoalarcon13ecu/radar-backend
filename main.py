@@ -59,13 +59,31 @@ def seed(n: int = 120):
 
 @app.get("/test")
 def test():
-    ...
+    from supabase import create_client
+    import os
+
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    res = supabase.table("test_table").select("*").execute()
     return res.data
-
-
 @app.get("/mentions")
 def get_mentions(limit: int = 50):
-    ...
+    sb, err = get_sb()
+    if err:
+        return JSONResponse(status_code=500, content={"error": err})
+
+    res = (
+        sb.table("mentions")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+
     return res.data
+
 
 
