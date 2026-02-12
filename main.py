@@ -57,20 +57,15 @@ def seed(n: int = 120):
             "topic": topic
         })
 
- @app.get("/mentions")
+@app.get("/test")
+def test():
+    ...
+    return res.data
+
+
+@app.get("/mentions")
 def get_mentions(limit: int = 50):
-    sb, err = get_sb()
-    if err:
-        return JSONResponse(status_code=500, content={"error": err})
-
-    res = (
-        sb.table("mentions")
-        .select("*")
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-
+    ...
     return res.data
 
 
