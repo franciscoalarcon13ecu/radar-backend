@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 import os, random
 from datetime import datetime, timedelta, timezone
 
-app = FastAPI(title="Radar Backend", version="0.3")
+app = FastAPI(title="Radar Backend", version="0.4")
 
 TOPICS = ["seguridad", "obras", "basura", "tráfico", "agua", "impuestos", "parques", "empleo"]
 SENTIMENTS = ["pos", "neu", "neg"]
@@ -25,7 +25,7 @@ def get_sb():
 
 
 # =========================
-# Health Check
+# Health
 # =========================
 @app.get("/health")
 def health():
@@ -39,7 +39,7 @@ def health():
 
 
 # =========================
-# Seed (datos demo)
+# Seed demo
 # =========================
 @app.api_route("/seed", methods=["GET", "POST"])
 def seed(n: int = 120):
@@ -78,68 +78,12 @@ def seed(n: int = 120):
 
 
 # =========================
-# Test simple
-# =========================
-@app.get("/test")
-def test():
-    sb, err = get_sb()
-    if err:
-        return JSONResponse(status_code=500, content={"error": err})
-
-    res = sb.table("test_table").select("*").execute()
-    return res.data
-
-
-# =========================
-# Mentions con filtros
-# =========================
-@app.get("/mentions")
-def get_mentions(
-    limit: int = Query(50, ge=1, le=500),
-    sentiment: str | None = Query(None, description="pos|neu|neg"),
-    topic: str | None = Query(None),
-    target: str | None = Query(None),
-    country: str | None = Query(None),
-    source: str | None = Query(None),
-    since_hours: int | None = Query(None, ge=1, le=720),
-):
-    sb, err = get_sb()
-    if err:
-        return JSONResponse(status_code=500, content={"error": err})
-
-    q = sb.table("mentions").select("*")
-
-    if sentiment:
-        q = q.eq("sentiment", sentiment)
-    if topic:
-        q = q.eq("topic", topic)
-    if target:
-        q = q.eq("target", target)
-    if country:
-        q = q.eq("country", country)
-    if source:
-        q = q.eq("source", source)
-
-    if since_hours:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=since_hours)
-        q = q.gte("created_at", cutoff.isoformat())
-
-    res = (
-        q.order("created_at", desc=True)
-         .limit(limit)
-         .execute()
-    )
-
-    return res.data
-
-
-# =========================
-# Search dinámico por palabra
+# Search con métricas
 # =========================
 @app.get("/search")
 def search_mentions(
     q: str = Query(..., min_length=2),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(100, ge=1, le=500),
     since_hours: int | None = Query(24, ge=1, le=720),
     target: str | None = Query(None),
 ):
@@ -149,7 +93,6 @@ def search_mentions(
 
     query = sb.table("mentions").select("*")
 
-    # Búsqueda texto case-insensitive
     query = query.ilike("text", f"%{q}%")
 
     if target:
@@ -165,9 +108,44 @@ def search_mentions(
              .execute()
     )
 
+    data = res.data or []
+    total = len(data)
+
+    if total == 0:
+        return {
+            "query": q,
+            "total": 0,
+            "sentiment_counts": {},
+            "sentiment_percentages": {},
+            "avg_score": 0,
+            "items": []
+        }
+
+    pos = sum(1 for r in data if r["sentiment"] == "pos")
+    neu = sum(1 for r in data if r["sentiment"] == "neu")
+    neg = sum(1 for r in data if r["sentiment"] == "neg")
+
+    avg_score = round(sum(r["score"] for r in data) / total, 2)
+
+    sentiment_counts = {
+        "pos": pos,
+        "neu": neu,
+        "neg": neg
+    }
+
+    sentiment_percentages = {
+        "pos": round((pos / total) * 100, 2),
+        "neu": round((neu / total) * 100, 2),
+        "neg": round((neg / total) * 100, 2),
+    }
+
     return {
         "query": q,
-        "count": len(res.data),
-        "items": res.data
+        "total": total,
+        "sentiment_counts": sentiment_counts,
+        "sentiment_percentages": sentiment_percentages,
+        "avg_score": avg_score,
+        "items": data
     }
+
 
